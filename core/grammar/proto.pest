@@ -1,0 +1,97 @@
+WHITESPACE = _{ " " | "\n" }
+COMMENT = ${ COMMENT_BLOCK | COMMENT_LINE }
+COMMENT_BLOCK = ${ "/*" ~ COMMENT_BLOCK_INNER ~ "*/" }
+COMMENT_BLOCK_INNER = @{ (!"*/" ~ ANY)* }
+COMMENT_LINE = ${ "//" ~ COMMENT_LINE_INNER ~ (NEWLINE | EOI) }
+COMMENT_LINE_INNER = @{ (!NEWLINE ~ ANY)* }
+
+
+EMPTY_STATEMENT = _{ ";" }
+
+keyword_weak = { "weak" } 
+keyword_public = { "public" } 
+keyword_max = { "max" }
+keyword_repeated = { "repeated" }
+keyword_optional = { "optional" }
+keyword_double = { "double" }
+keyword_float = { "float" }
+keyword_int32 = { "int32" }
+keyword_int64 = { "int64" }
+keyword_uint32 = { "uint32" }
+keyword_uint64 = { "uint64" }
+keyword_sint32 = { "sint32" }
+keyword_sint64 = { "sint64" }
+keyword_fixed32 = { "fixed32" }
+keyword_fixed64 = { "fixed64" }
+keyword_sfixed32 = { "sfixed32" }
+keyword_sfixed64 = { "sfixed64" }
+keyword_bool = { "bool" }
+keyword_string = { "string" }
+keyword_bytes = { "bytes" }
+keyword_stream = { "stream" }
+
+
+
+
+
+syntax = ${ COMMENT* ~ WHITESPACE* ~ "syntax" ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ (("\"" ~ syntax_proto3 ~ "\"") | ("'" ~ syntax_proto3 ~ "'")) ~ WHITESPACE* ~ ";" }
+syntax_proto3 = { "proto3" } 
+
+import = ${ COMMENT* ~ WHITESPACE* ~ "import" ~ WHITESPACE+ ~ ((keyword_weak | keyword_public) ~ WHITESPACE+)? ~ STRING_LIT ~ ";" }
+package = ${ COMMENT* ~ WHITESPACE* ~ "package" ~ WHITESPACE+ ~ FULL_IDENT ~ ";" }
+option = ${ COMMENT* ~ WHITESPACE* ~ "option" ~ WHITESPACE+ ~ option_name ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ CONSTANT ~ WHITESPACE* ~ ";" }
+option_name_part = { IDENT | BRACED_FULL_IDENT }
+option_name = ${ (IDENT | BRACED_FULL_IDENT) ~ ("." ~ (IDENT | BRACED_FULL_IDENT))* }
+
+type = { keyword_double | keyword_float | keyword_int32 | keyword_int64 | keyword_uint32 | keyword_uint64 | keyword_sint32 | keyword_sint64 | keyword_fixed32 | keyword_fixed64 | keyword_sfixed32 | keyword_sfixed64 | keyword_bool | keyword_string | keyword_bytes | user_type }
+
+user_type =  @{ (".")? ~ (IDENT ~ ".")* ~ IDENT }  
+
+field_number = { INT_LIT }
+
+field = ${ COMMENT* ~ WHITESPACE* ~ ((keyword_repeated | keyword_optional) ~ WHITESPACE+)? ~ type ~ WHITESPACE+ ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ field_option ~ WHITESPACE* ~ ("," ~ field_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]" ~ WHITESPACE*)? ~ ";" }
+field_option = { option_name ~ "=" ~ CONSTANT }
+
+
+one_of = ${ COMMENT* ~ WHITESPACE* ~ "oneof" ~ WHITESPACE+ ~ IDENT ~ WHITESPACE* ~ "{" ~ WHITESPACE* ~ one_of_body ~ WHITESPACE* ~ "}" ~ WHITESPACE* } 
+one_of_body = ${ ((option | one_of_field) ~ WHITESPACE*)* }
+one_of_field = ${ COMMENT* ~ WHITESPACE* ~ type ~ WHITESPACE+ ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ field_option ~ WHITESPACE* ~ ("," ~ field_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]" ~ WHITESPACE*)? ~ ";" }
+
+key_type = { keyword_int32 | keyword_int64 | keyword_uint32 | keyword_uint64 | keyword_sint32 | keyword_sint64 | keyword_fixed32 | keyword_fixed64 | keyword_sfixed32 | keyword_sfixed64 | keyword_bool | keyword_string }
+map_field = ${ COMMENT* ~ WHITESPACE* ~ "map" ~ WHITESPACE* ~ "<" ~ WHITESPACE* ~ key_type ~ WHITESPACE* ~ "," ~ WHITESPACE* ~ type ~ WHITESPACE* ~ ">" ~ WHITESPACE+ ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ field_option ~ WHITESPACE* ~ ("," ~ field_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]" ~ WHITESPACE*)? ~ ";" }
+
+range = ${ INT_LIT ~ (WHITESPACE+ ~ "to" ~ WHITESPACE+ ~ (INT_LIT | keyword_max))? }
+ranges = ${ range ~ WHITESPACE* ~ ("," ~ WHITESPACE* ~ range)* }
+reserved = ${ COMMENT* ~ WHITESPACE* ~ "reserved" ~ WHITESPACE+ ~ (ranges | str_field_names) ~ ";" }
+str_field_name = { ("'" ~ IDENT ~ "'") | ("\"" ~ IDENT ~ "\"") }
+str_field_names = { str_field_name ~ ("," ~ str_field_name)* }
+
+
+enum_type = @{ (".")? ~ (IDENT ~ ".")* ~ enum_name }
+enum = ${ COMMENT* ~ WHITESPACE* ~ "enum" ~ WHITESPACE+ ~ enum_name ~ WHITESPACE* ~ enum_body }
+enum_body = ${ "{" ~ WHITESPACE* ~ ((option | enum_field | EMPTY_STATEMENT | reserved) ~ WHITESPACE*)* ~ WHITESPACE* ~ "}" }
+enum_field = ${ COMMENT* ~ WHITESPACE* ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ SIGNED_INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ enum_value_option ~ WHITESPACE* ~ ("," ~ enum_value_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]")? }
+enum_name = { IDENT }
+enum_value_option = ${ option_name ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ CONSTANT }
+
+
+message_name = { IDENT }
+message = ${ COMMENT* ~ WHITESPACE* ~ "message" ~ WHITESPACE+ ~ message_name ~ WHITESPACE* ~ "{" ~ WHITESPACE* ~ message_body ~ WHITESPACE* ~ "}" ~ WHITESPACE* }
+message_body = ${ ((field | enum | message | option | one_of | map_field | reserved | EMPTY_STATEMENT) ~ WHITESPACE*)*  }
+message_type = @{ (".")? ~ (IDENT ~ ".")* ~ message_name }
+
+
+
+service_name = { IDENT }
+rpc_name = { IDENT }
+rpc_field = { (keyword_stream ~ WHITESPACE+)? ~ message_type }
+rpc_input = { rpc_field }
+rpc_output = { rpc_field }
+rpc = ${ COMMENT* ~ WHITESPACE* ~ "rpc" ~ WHITESPACE+ ~ rpc_name ~ WHITESPACE* ~ "(" ~ WHITESPACE* ~ rpc_input ~ WHITESPACE* ~ ")" ~ WHITESPACE+ ~ "returns" ~ WHITESPACE* ~ "(" ~ WHITESPACE* ~ rpc_output ~ WHITESPACE* ~ ")" ~ WHITESPACE* ~ (("{" ~ WHITESPACE* ~ (option | EMPTY_STATEMENT)* ~ WHITESPACE* ~ "}") | ";") }
+service = ${  COMMENT* ~ WHITESPACE* ~ "service" ~ WHITESPACE+ ~ service_name ~ WHITESPACE* ~ "{" ~ WHITESPACE* ~ service_body ~ WHITESPACE* ~ "}"}
+service_body = ${ ((option | rpc | EMPTY_STATEMENT) ~ WHITESPACE*)* }
+
+
+
+proto = ${ SOI ~ WHITESPACE* ~ ((import | package | option | message | enum | service | EMPTY_STATEMENT) ~ WHITESPACE*)* ~ EOI }
+proto_with_syntax = ${ SOI ~ WHITESPACE* ~ syntax? ~ WHITESPACE* ~ ((import | package | option | message | enum | service | EMPTY_STATEMENT) ~ WHITESPACE*)* ~ EOI } 

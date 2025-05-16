@@ -1,0 +1,2 @@
+syntax = { "syntax" ~ "=" ~ STRING_LIT ~ ";" }
+proto = { SOI ~ syntax? ~ ANY* ~ EOI }

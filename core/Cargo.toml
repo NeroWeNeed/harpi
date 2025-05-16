@@ -1,0 +1,11 @@
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pest = { workspace = true }
+pest_derive = { workspace = true }
+thiserror = { workspace = true }
+builder = { workspace = true }
+getter = { workspace = true }
