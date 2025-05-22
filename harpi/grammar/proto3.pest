@@ -49,8 +49,8 @@ user_type =  @{ (".")? ~ (IDENT ~ ".")* ~ IDENT }
 
 field_number = { INT_LIT }
 
-field = ${ COMMENT* ~ WHITESPACE* ~ ((keyword_repeated | keyword_optional) ~ WHITESPACE+)? ~ type ~ WHITESPACE+ ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ field_option ~ WHITESPACE* ~ ("," ~ field_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]" ~ WHITESPACE*)? ~ ";" }
-field_option = { option_name ~ "=" ~ CONSTANT }
+field = ${ (COMMENT ~ WHITESPACE*)* ~ ((keyword_repeated | keyword_optional) ~ WHITESPACE+)? ~ type ~ WHITESPACE+ ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ field_option ~ WHITESPACE* ~ ("," ~ field_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]" ~ WHITESPACE*)? ~ ";" }
+field_option = ${ option_name ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ CONSTANT }
 
 
 one_of = ${ COMMENT* ~ WHITESPACE* ~ "oneof" ~ WHITESPACE+ ~ IDENT ~ WHITESPACE* ~ "{" ~ WHITESPACE* ~ one_of_body ~ WHITESPACE* ~ "}" ~ WHITESPACE* } 
@@ -69,15 +69,15 @@ str_field_names = { str_field_name ~ ("," ~ str_field_name)* }
 
 enum_type = @{ (".")? ~ (IDENT ~ ".")* ~ enum_name }
 enum = ${ COMMENT* ~ WHITESPACE* ~ "enum" ~ WHITESPACE+ ~ enum_name ~ WHITESPACE* ~ enum_body }
-enum_body = ${ "{" ~ WHITESPACE* ~ ((option | enum_field | EMPTY_STATEMENT | reserved) ~ WHITESPACE*)* ~ WHITESPACE* ~ "}" }
-enum_field = ${ COMMENT* ~ WHITESPACE* ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ SIGNED_INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ enum_value_option ~ WHITESPACE* ~ ("," ~ enum_value_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]")? }
+enum_body = ${ "{" ~ WHITESPACE* ~ (COMMENT* ~ WHITESPACE* ~ (option | enum_field | EMPTY_STATEMENT | reserved) ~ WHITESPACE* ~ COMMENT*)* ~ WHITESPACE* ~ "}" }
+enum_field = ${ (COMMENT ~ WHITESPACE*)* ~ IDENT ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ SIGNED_INT_LIT ~ WHITESPACE* ~ ("[" ~ WHITESPACE* ~ enum_value_option ~ WHITESPACE* ~ ("," ~ enum_value_option ~ WHITESPACE*)* ~ WHITESPACE* ~ "]")? ~ ";" }
 enum_name = { IDENT }
 enum_value_option = ${ option_name ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ CONSTANT }
 
 
 message_name = { IDENT }
 message = ${ COMMENT* ~ WHITESPACE* ~ "message" ~ WHITESPACE+ ~ message_name ~ WHITESPACE* ~ "{" ~ WHITESPACE* ~ message_body ~ WHITESPACE* ~ "}" ~ WHITESPACE* }
-message_body = ${ ((field | enum | message | option | one_of | map_field | reserved | EMPTY_STATEMENT) ~ WHITESPACE*)*  }
+message_body = ${ (COMMENT* ~ WHITESPACE* ~ (field | enum | message | option | one_of | map_field | reserved | EMPTY_STATEMENT) ~ WHITESPACE* ~ COMMENT*)*  }
 message_type = @{ (".")? ~ (IDENT ~ ".")* ~ message_name }
 
 
@@ -93,5 +93,5 @@ service_body = ${ ((option | rpc | EMPTY_STATEMENT) ~ WHITESPACE*)* }
 
 
 
-proto = ${ SOI ~ WHITESPACE* ~ ((import | package | option | message | enum | service | EMPTY_STATEMENT) ~ WHITESPACE*)* ~ EOI }
-proto_with_syntax = ${ SOI ~ WHITESPACE* ~ syntax? ~ WHITESPACE* ~ ((import | package | option | message | enum | service | EMPTY_STATEMENT) ~ WHITESPACE*)* ~ EOI } 
+proto_no_syntax = ${ SOI ~ WHITESPACE* ~ ((import | package | option | message | enum | service | COMMENT+ | EMPTY_STATEMENT) ~ WHITESPACE*)* ~ EOI }  
+proto = ${ SOI ~ WHITESPACE* ~ syntax? ~ WHITESPACE* ~ ((import | package | option | message | enum | service | COMMENT+ | EMPTY_STATEMENT) ~ WHITESPACE*)* ~ EOI } 

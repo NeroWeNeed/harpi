@@ -1,5 +1,5 @@
 [package]
-name = "core"
+name = "harpi"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,3 +9,4 @@ pest_derive = { workspace = true }
 thiserror = { workspace = true }
 builder = { workspace = true }
 getter = { workspace = true }
+derive = { workspace = true }

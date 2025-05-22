@@ -1,0 +1,10 @@
+WHITESPACE = _{ " " | "\n" }
+COMMENT = ${ COMMENT_BLOCK | COMMENT_LINE }
+COMMENT_BLOCK = ${ "/*" ~ COMMENT_BLOCK_INNER ~ "*/" }
+COMMENT_BLOCK_INNER = @{ (!"*/" ~ ANY)* }
+COMMENT_LINE = ${ "//" ~ COMMENT_LINE_INNER ~ (NEWLINE | EOI) }
+COMMENT_LINE_INNER = @{ (!NEWLINE ~ ANY)* }
+
+syntax = ${ COMMENT* ~ WHITESPACE* ~ "syntax" ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ STRING_LIT ~ WHITESPACE* ~ ";" }
+body = ${ ANY* }
+proto = ${ SOI ~ WHITESPACE* ~ syntax? ~ body ~ EOI }

@@ -8,19 +8,20 @@ use crate::{
     model::{
         self, Comment, Constant, Enum, EnumBuilder, EnumItem, Ident, Import, MapField,
         MapFieldKeyType, Message, MessageBuilder, MessageReference, NormalField, OneOfField,
-        OneOfFieldBuilder, OneOfFieldItem, Package, Proto, ReservedData, ReservedItems,
+        OneOfFieldBuilder, OneOfFieldItem, Package, ReservedData, ReservedItems,
         ReservedItemsBuilder, Service, ServiceBuilder, ServiceRpc, ServiceRpcField, Syntax, Type,
     },
-    parser::ProtoSyntax,
     proto3::{
         parse_bool, parse_ident, parse_literal_int, parse_literal_signed_int, parse_literal_string,
         parse_literal_unsigned_int, parse_signed_float,
     },
 };
 
+use crate::{Node, ProtoVisitor};
+
 #[derive(Debug, Default, Clone, Copy, pest_derive::Parser)]
 #[grammar = "./grammar/literal.pest"]
-#[grammar = "./grammar/proto.pest"]
+#[grammar = "./grammar/proto3.pest"]
 pub(crate) struct InternalParser;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Proto3;
@@ -30,36 +31,20 @@ type Proto3Pairs<'a> = Pairs<'a, Proto3Rule>;
 type Proto3Pair<'a> = Pair<'a, Proto3Rule>;
 type Proto3Result<T> = Result<T, Error>;
 
-const SYNTAX: &'static str = "proto3";
 impl ProtoParser for Proto3 {
-    fn parse<'a>(&self, input: &'a str) -> Proto3Result<crate::model::Proto<'a>> {
-        let pairs = InternalParser::parse(Rule::proto_with_syntax, input)?;
-        let mut result = Err(Error::UndefinedParsingRoute);
-        for pair in pairs {
-            let rule = pair.as_rule();
-            match rule {
-                Rule::proto_with_syntax => {
-                    result = parse(pair.into_inner());
-                    break;
-                }
-                _ => {
-                    result = Err(Error::UndefinedParsingRoute);
-                    break;
-                }
-            }
-        }
-        result
-    }
-}
-impl ProtoSyntax for Proto3 {
-    fn parse<'a>(&self, data: &'a str) -> Proto3Result<crate::model::Proto<'a>> {
+    const SYNTAX: &'static str = "proto3";
+
+    fn parse<'a, Visitor>(data: &'a str, visitor: &mut Visitor) -> Proto3Result<()>
+    where
+        Visitor: ProtoVisitor,
+    {
         let pairs = InternalParser::parse(Rule::proto, data)?;
         let mut result = Err(Error::UndefinedParsingRoute);
         for pair in pairs {
             let rule = pair.as_rule();
             match rule {
                 Rule::proto => {
-                    result = parse(pair.into_inner());
+                    result = parse(pair.into_inner(), None, visitor);
                     break;
                 }
                 _ => {
@@ -71,41 +56,75 @@ impl ProtoSyntax for Proto3 {
         result
     }
 
-    fn syntax<'a>(&self) -> &'a str {
-        SYNTAX
+    fn parse_with_syntax<'a, Visitor>(
+        data: &'a str,
+        syntax: Syntax<'a>,
+        visitor: &mut Visitor,
+    ) -> Result<(), Error>
+    where
+        Visitor: ProtoVisitor,
+    {
+        let pairs = InternalParser::parse(Rule::proto_no_syntax, data)?;
+        let mut result = Err(Error::UndefinedParsingRoute);
+        for pair in pairs {
+            let rule = pair.as_rule();
+            match rule {
+                Rule::proto_no_syntax => {
+                    result = parse(pair.into_inner(), Some(syntax), visitor);
+                    break;
+                }
+                _ => {
+                    result = Err(Error::UndefinedParsingRoute);
+                    break;
+                }
+            }
+        }
+        result
     }
 }
-fn parse<'a>(pairs: Proto3Pairs<'a>) -> Proto3Result<crate::model::Proto<'a>> {
-    let mut proto = Proto::builder();
+
+fn parse<'a, Visitor>(
+    pairs: Proto3Pairs<'a>,
+    syntax: Option<Syntax<'a>>,
+    visitor: &mut Visitor,
+) -> Proto3Result<()>
+where
+    Visitor: ProtoVisitor,
+{
+    visitor.on(Node::Start);
+    if let Some(syntax) = syntax {
+        visitor.on(Node::Syntax(syntax));
+    }
     for pair in pairs {
         let rule = pair.as_rule();
         match rule {
             Rule::EOI => break,
             Rule::syntax => {
-                proto.set_syntax(parse_syntax(pair)?);
+                visitor.on(Node::Syntax(parse_syntax(pair)?));
             }
             Rule::import => {
-                proto.with_import(parse_import(pair)?);
+                visitor.on(Node::Import(parse_import(pair)?));
             }
             Rule::package => {
-                proto.set_package(parse_package(pair)?);
+                visitor.on(Node::Package(parse_package(pair)?));
             }
             Rule::option => {
-                proto.with_option(parse_option(pair)?);
+                visitor.on(Node::Option(parse_option(pair)?));
             }
             Rule::r#enum => {
-                proto.with_enum(parse_enum(pair)?);
+                visitor.on(Node::Enum(parse_enum(pair)?));
             }
             Rule::message => {
-                proto.with_message(parse_message(pair)?);
+                visitor.on(Node::Message(parse_message(pair)?));
             }
             Rule::service => {
-                proto.with_service(parse_service(pair)?);
+                visitor.on(Node::Service(parse_service(pair)?));
             }
             _ => return Err(Error::UndefinedParsingRoute),
         }
     }
-    Ok(proto.build())
+    visitor.on(Node::End);
+    Ok(())
 }
 fn parse_syntax<'a>(pair: Proto3Pair<'a>) -> Proto3Result<Syntax<'a>> {
     let pairs = pair.into_inner();
@@ -117,7 +136,7 @@ fn parse_syntax<'a>(pair: Proto3Pair<'a>) -> Proto3Result<Syntax<'a>> {
                 builder.with_comment(parse_comment(pair)?);
             }
             Rule::syntax_proto3 => {
-                builder.set_value(SYNTAX);
+                builder.set_value(Proto3::SYNTAX);
             }
 
             _ => return Err(Error::UndefinedParsingRoute),
@@ -140,7 +159,6 @@ fn parse_import<'a>(pair: Proto3Pair<'a>) -> Proto3Result<Import<'a>> {
             }
             Rule::STRING_LIT => {
                 let output = parse_literal_string(pair)?;
-                println!("Import: {:?}", output);
                 builder.set_value(output);
             }
             Rule::COMMENT => {
@@ -276,7 +294,7 @@ fn parse_reserved<'a>(pair: Proto3Pair<'a>) -> Proto3Result<ReservedItems<'a>> {
     Ok(builder.build())
 }
 
-pub(super) fn parse_constant<'a>(pair: Proto3Pair<'a>) -> Proto3Result<Constant<'a>> {
+fn parse_constant<'a>(pair: Proto3Pair<'a>) -> Proto3Result<Constant<'a>> {
     let pairs = pair.into_inner();
     for pair in pairs {
         let rule = pair.as_rule();

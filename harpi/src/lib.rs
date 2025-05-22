@@ -5,3 +5,6 @@ pub use error::*;
 pub use parser::*;
 mod syntax;
 pub use syntax::*;
+mod visitor;
+pub use derive::*;
+pub use visitor::*;

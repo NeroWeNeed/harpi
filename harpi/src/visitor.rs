@@ -1,7 +1,7 @@
 use crate::model::{Enum, Import, Message, Package, Service, Syntax};
 
 #[derive(Debug, Clone)]
-pub enum Proto3Node<'a> {
+pub enum Node<'a> {
     Start,
     Syntax(Syntax<'a>),
     Package(Package<'a>),
@@ -13,6 +13,5 @@ pub enum Proto3Node<'a> {
     End,
 }
 pub trait ProtoVisitor {
-    type Error;
-    fn on<'a>(&mut self, node: Proto3Node<'a>) -> Result<(), Self::Error>;
+    fn on<'a>(&mut self, node: Node<'a>);
 }

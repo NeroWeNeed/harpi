@@ -5,11 +5,15 @@ pub enum Error {
     #[error(transparent)]
     ParsingSyntax(#[from] pest::error::Error<crate::syntax::proto3::Rule>),
     #[error(transparent)]
-    ParsingProto3(#[from] pest::error::Error<crate::syntax::Rule>),
+    ParsingProto3(#[from] pest::error::Error<crate::syntax::header::Rule>),
     #[error("Unknown error")]
     Unknown,
     #[error("path should be unreachable")]
     UndefinedParsingRoute,
+    #[error("parser {0} is undefined")]
+    UndefinedParser(String),
+    #[error("parser {0} was expected, found {1}")]
+    InvalidSyntax(String, String),
     #[error(transparent)]
     ParsingLiteralInt(#[from] ParseIntError),
     #[error(transparent)]
